@@ -39,9 +39,10 @@ func ShortenURL(c *fiber.Ctx) error {
 
 	if !helpers.RemoveDomainErr(body.URL) {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "invalid url",
+			"error": "invalid url !! you can't hack the system.",
 		})
 	}
 
 	body.URL = helpers.EnforceHTTP(body.URL)
+
 }
