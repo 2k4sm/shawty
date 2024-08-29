@@ -20,11 +20,11 @@ type request struct {
 }
 
 type response struct {
-	URL            string        `json:"url"`
-	CustomShort    string        `json:"short"`
-	Expiry         time.Duration `json:"expiry"`
-	XRateRemaining uint          `json:"rate_limit"`
-	XRateLimitRest time.Duration `json:"rate_limit_reset"`
+	URL             string        `json:"url"`
+	CustomShort     string        `json:"short"`
+	Expiry          time.Duration `json:"expiry"`
+	XRateRemaining  int           `json:"rate_limit"`
+	XRateLimitReset time.Duration `json:"rate_limit_reset"`
 }
 
 func ShortenURL(c *fiber.Ctx) error {
@@ -36,8 +36,6 @@ func ShortenURL(c *fiber.Ctx) error {
 		})
 	}
 
-	//TODO: Implement rate limiting.
-
 	r2 := database.CreateClient(1)
 	defer r2.Close()
 
@@ -46,15 +44,14 @@ func ShortenURL(c *fiber.Ctx) error {
 	if err == redis.Nil {
 		_ = r2.Set(database.Ctx, c.IP(), os.Getenv("API_QUOTA"), 30*60*time.Second).Err()
 	} else {
-		val, _ = r2.Get(database.Ctx, c.IP()).Result()
 		valInt, _ := strconv.Atoi(val)
 
 		if valInt <= 0 {
 			limit, _ := r2.TTL(database.Ctx, c.IP()).Result()
 
 			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"error":           "Rate limit exceeded. Please try again after " + limit.String(),
-				"rate_limit_rest": limit / time.Nanosecond / time.Minute,
+				"error":            "Rate limit exceeded. Please try again after " + limit.String(),
+				"rate_limit_reset": limit / time.Nanosecond / time.Minute,
 			})
 		}
 	}
@@ -104,5 +101,24 @@ func ShortenURL(c *fiber.Ctx) error {
 		})
 	}
 
+	resp := response{
+		URL:             body.URL,
+		CustomShort:     "",
+		Expiry:          body.Expiry,
+		XRateRemaining:  10,
+		XRateLimitReset: 30,
+	}
+
 	r2.Decr(database.Ctx, c.IP())
+
+	val, _ = r2.Get(database.Ctx, c.IP()).Result()
+	resp.XRateRemaining, _ = strconv.Atoi(val)
+
+	ttl, _ := r2.TTL(database.Ctx, c.IP()).Result()
+
+	resp.XRateLimitReset = ttl / time.Nanosecond / time.Minute
+
+	resp.CustomShort = os.Getenv("DOMAIN") + "/" + id
+
+	return c.Status(fiber.StatusOK).JSON(resp)
 }
