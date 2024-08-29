@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/2k4sm/shawty/routes"
 	"github.com/gofiber/fiber/v2"
@@ -33,6 +34,13 @@ func main() {
 	app.Use(logger.New())
 
 	port := ":" + os.Getenv("PORT")
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "server started on Port :" + port,
+			"time":    time.Now(),
+		})
+	})
 
 	log.Fatal(app.Listen(port))
 }
