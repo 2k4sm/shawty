@@ -8,13 +8,14 @@ import (
 
 func ResolveURL(c *fiber.Ctx) error {
 	url := c.Params("url")
+	// log.Info(url)
 
 	r := database.CreateClient(0)
 	defer r.Close()
 
 	val, err := r.Get(database.Ctx, url).Result()
 
-	if err != redis.Nil {
+	if err == redis.Nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "short not found in database",
 		})
