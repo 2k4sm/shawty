@@ -12,11 +12,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func setUpRoutes(app *fiber.App) {
-	app.Get("/:url", routes.ResolveURL)
-	app.Post("/api/v1", routes.ShortenURL)
-}
-
 func main() {
 	err := godotenv.Load()
 
@@ -29,7 +24,7 @@ func main() {
 		SSLMODE:   os.Getenv("SSLMODE"),
 	}
 
-	database.InitPGdb(&dbConf)
+	db := database.InitPGdb(&dbConf)
 
 	if err != nil {
 		panic("Error loading .env file")
@@ -40,10 +35,11 @@ func main() {
 			AppName: "Shawty",
 		},
 	)
-
-	setUpRoutes(app)
-
 	app.Use(logger.New())
+
+	api := app.Group("/api")
+	routes.SetupShawtyRoutes(api)
+	routes.SetupUserRoutes(api, db)
 
 	port := ":" + os.Getenv("PORT")
 
