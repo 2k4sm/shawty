@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/2k4sm/shawty/models"
@@ -21,13 +20,13 @@ type UserRepo struct {
 	DB *gorm.DB
 }
 
-func (u *UserRepo) NewUserRepo(db *gorm.DB) UserRepoInterface {
+func NewUserRepo(db *gorm.DB) UserRepoInterface {
 	return &UserRepo{
 		DB: db,
 	}
 }
 
-func (u *UserRepo) FindUserById(id int) (*models.User, error) {
+func (u UserRepo) FindUserById(id int) (*models.User, error) {
 	var userToFind models.User
 
 	txn := u.DB.Find(&userToFind, id)
@@ -39,7 +38,7 @@ func (u *UserRepo) FindUserById(id int) (*models.User, error) {
 	return &userToFind, nil
 }
 
-func (u *UserRepo) FindUserByEmail(email string) (*models.User, error) {
+func (u UserRepo) FindUserByEmail(email string) (*models.User, error) {
 	var userToFind models.User
 
 	txn := u.DB.Find(&userToFind, "email = ?", email)
@@ -51,7 +50,7 @@ func (u *UserRepo) FindUserByEmail(email string) (*models.User, error) {
 	return &userToFind, nil
 }
 
-func (u *UserRepo) FindUserByUname(name string) (*models.User, error) {
+func (u UserRepo) FindUserByUname(name string) (*models.User, error) {
 	var userToFind models.User
 
 	txn := u.DB.Find(&userToFind, "name = ?", name)
@@ -63,25 +62,26 @@ func (u *UserRepo) FindUserByUname(name string) (*models.User, error) {
 	return &userToFind, nil
 }
 
-func (u *UserRepo) CreateUser(user *models.User) (*models.User, error) {
-	var newUser models.User
+func (u UserRepo) CreateUser(user *models.User) (*models.User, error) {
+	var existingUser models.User
 
-	u.DB.Find(&newUser, "email = ?", user.Email)
+	txn := u.DB.Where("email = ?", user.Email).First(&existingUser)
 
-	if newUser.ID != 0 {
-		return nil, errors.New("user already exists")
+	if txn != nil && txn.Error != gorm.ErrRecordNotFound && existingUser.ID != 0 {
+		return &existingUser, fmt.Errorf("user already exists")
 	}
 
-	txn := u.DB.Create(user)
+	txn = u.DB.Create(user)
 
 	if txn.Error != nil {
-		return nil, fmt.Errorf("error creating user: %v", txn.Error)
+		return nil, fmt.Errorf("failed to create user: %v", txn.Error)
 	}
 
 	return user, nil
+
 }
 
-func (u *UserRepo) UpdateUserPass(email string, newPass string) (*models.User, error) {
+func (u UserRepo) UpdateUserPass(email string, newPass string) (*models.User, error) {
 	var userToUpdate models.User
 
 	txn := u.DB.Find(&userToUpdate, "email = ?", email)
@@ -101,7 +101,7 @@ func (u *UserRepo) UpdateUserPass(email string, newPass string) (*models.User, e
 	return &userToUpdate, nil
 }
 
-func (u *UserRepo) DeleteUserById(id int) error {
+func (u UserRepo) DeleteUserById(id int) error {
 	var userToDel models.User
 
 	txn := u.DB.Find(&userToDel, id)

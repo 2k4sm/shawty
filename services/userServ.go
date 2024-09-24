@@ -18,18 +18,18 @@ type UserServ struct {
 	repo repositories.UserRepoInterface
 }
 
-func (s *UserServ) NewUserServ(userRepo repositories.UserRepoInterface) UserServInterface {
+func NewUserServ(userRepo repositories.UserRepoInterface) UserServInterface {
 	return &UserServ{
 		repo: userRepo,
 	}
 }
 
-func (s *UserServ) Login(user *dto.UserLogin) (*models.User, error) {
+func (s UserServ) Login(user *dto.UserLogin) (*models.User, error) {
 
 	return s.repo.FindUserByEmail(user.Email)
 }
 
-func (s *UserServ) SignUp(user *dto.UserSignup) (*models.User, error) {
+func (s UserServ) SignUp(user *dto.UserSignup) (*models.User, error) {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
 	newUserModel := models.User{}
@@ -41,10 +41,10 @@ func (s *UserServ) SignUp(user *dto.UserSignup) (*models.User, error) {
 	return s.repo.CreateUser(&newUserModel)
 }
 
-func (s *UserServ) UpdatePass(user *dto.UpdateUserPass) (*models.User, error) {
+func (s UserServ) UpdatePass(user *dto.UpdateUserPass) (*models.User, error) {
 	return s.repo.UpdateUserPass(user.Email, user.Password)
 }
 
-func (s *UserServ) DeleteUser(id int) error {
+func (s UserServ) DeleteUser(id int) error {
 	return s.repo.DeleteUserById(id)
 }

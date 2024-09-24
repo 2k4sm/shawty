@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/2k4sm/shawty/dto"
 	"github.com/2k4sm/shawty/services"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -31,7 +30,7 @@ func NewUserHandler(serv services.UserServInterface) UserHandlerInterface {
 
 // }
 
-func (uh *UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
+func (uh UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
 	var newUser dto.UserSignup
 
 	if err := ctx.BodyParser(&newUser); err != nil {
@@ -40,19 +39,23 @@ func (uh *UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user, err := uh.service.SignUp(&newUser)
+	validate := validator.New(validator.WithRequiredStructEnabled())
 
-	if err != nil && errors.Is(err, fmt.Errorf("user already exists")) {
-		return ctx.Status(http.StatusConflict).JSON(fiber.Map{
+	err := validate.Struct(newUser)
+
+	if err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 
-	userResp := dto.UserSignup{}
+	user, err := uh.service.SignUp(&newUser)
 
-	userResp.Email = user.Email
-	userResp.Name = user.Name
-	userResp.Password = user.Password
+	if err != nil && user == nil {
+		return ctx.Status(http.StatusConflict).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 
 	if err != nil {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -60,7 +63,13 @@ func (uh *UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
 		})
 	}
 
-	return ctx.JSON(&userResp)
+	userResp := dto.UserSignup{
+		Name:     user.Name,
+		Email:    user.Email,
+		Password: user.Password,
+	}
+
+	return ctx.Status(http.StatusCreated).JSON(userResp)
 }
 
 // func (uh *UserHandler) UpdatePassHandler(ctx *fiber.Ctx) error {
