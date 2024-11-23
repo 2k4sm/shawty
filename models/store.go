@@ -6,7 +6,8 @@ import (
 
 type Store struct {
 	*gorm.Model
-	URL   string
-	Short string `gorm:"unique"`
-	Owner User   `gorm:"foreignKey:UserId"`
+	URL    string
+	Short  string `gorm:"unique"`
+	Owner  User   `gorm:"foreignKey:UserID"`
+	UserID int
 }

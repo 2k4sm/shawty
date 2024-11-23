@@ -14,6 +14,7 @@ func SetupUserRoutes(router fiber.Router, db *gorm.DB) {
 	userHandlers := handlers.NewUserHandler(userServs)
 
 	router.Post("/signup", userHandlers.SignUpHandler)
+	router.Post("/login", userHandlers.LoginHandler)
 }
 
 func SetupShawtyRoutes(router fiber.Router) {

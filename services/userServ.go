@@ -1,17 +1,21 @@
 package services
 
 import (
+	"os"
+	"time"
+
 	"github.com/2k4sm/shawty/dto"
 	"github.com/2k4sm/shawty/models"
 	"github.com/2k4sm/shawty/repositories"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserServInterface interface {
-	Login(*dto.UserLogin) (*models.User, error)
-	SignUp(*dto.UserSignup) (*models.User, error)
-	UpdatePass(*dto.UpdateUserPass) (*models.User, error)
-	DeleteUser(id int) error
+	Login(*dto.UserAuth) (string, error)
+	SignUp(*dto.UserAuth) (string, error)
+	// UpdatePass(*dto.UpdateUserPass) (*models.User, error)
+	// DeleteUser(id int) error
 }
 
 type UserServ struct {
@@ -24,27 +28,70 @@ func NewUserServ(userRepo repositories.UserRepoInterface) UserServInterface {
 	}
 }
 
-func (s UserServ) Login(user *dto.UserLogin) (*models.User, error) {
+func (s UserServ) Login(user *dto.UserAuth) (string, error) {
+	existingUser, err := s.repo.FindUserByEmail(user.Email)
 
-	return s.repo.FindUserByEmail(user.Email)
+	if err != nil {
+		return "", err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(existingUser.Password),[]byte(user.Password))
+
+	if err != nil {
+		return "", err
+	}
+
+	jwtCreator := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"expiry" : time.Now().Add(time.Hour),
+		"userId" : existingUser.ID,
+	})
+
+	token, err := jwtCreator.SignedString([]byte(os.Getenv("JWT_SIGN_KEY")))
+
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
-func (s UserServ) SignUp(user *dto.UserSignup) (*models.User, error) {
+func (s UserServ) SignUp(user *dto.UserAuth) (string, error) {
+	cryptPass, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
-	newUserModel := models.User{}
+	if err != nil {
+		return "", err
+	}
+	
+	newUser := models.User{
+		Email : user.Email,
+		Name : user.Name,
+		Password: string(cryptPass),
+	}
 
-	newUserModel.Name = user.Name
-	newUserModel.Email = user.Email
-	newUserModel.Password = string(password)
+	createdUser, err := s.repo.CreateUser(&newUser)
 
-	return s.repo.CreateUser(&newUserModel)
+	if err != nil {
+		return "", err
+	}
+
+	jwtCreator := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"expiry" : time.Now().Add(time.Hour),
+		"userId" : createdUser.ID,
+	})
+
+	token, err := jwtCreator.SignedString([]byte(os.Getenv("JWT_SIGN_KEY")))
+
+	if err != nil {
+		return "",err
+	}
+
+	return token, nil
 }
 
-func (s UserServ) UpdatePass(user *dto.UpdateUserPass) (*models.User, error) {
-	return s.repo.UpdateUserPass(user.Email, user.Password)
-}
+// func (s UserServ) UpdatePass(user *dto.UpdateUserPass) (*models.User, error) {
+// 	return s.repo.UpdateUserPass(user.Email, user.Password)
+// }
 
-func (s UserServ) DeleteUser(id int) error {
-	return s.repo.DeleteUserById(id)
-}
+// func (s UserServ) DeleteUser(id int) error {
+// 	return s.repo.DeleteUserById(id)
+// }

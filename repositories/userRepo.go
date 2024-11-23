@@ -41,13 +41,11 @@ func (u UserRepo) FindUserById(id int) (*models.User, error) {
 func (u UserRepo) FindUserByEmail(email string) (*models.User, error) {
 	var userToFind models.User
 
-	txn := u.DB.Find(&userToFind, "email = ?", email)
-
-	if userToFind.ID == 0 || txn.Error != nil {
-		return nil, fmt.Errorf("user not found : %v", txn.Error)
-	}
-
-	return &userToFind, nil
+	if err := u.DB.Where("email = ?", email).First(&userToFind).Error; err != nil {
+        return nil, fmt.Errorf("user not found, err:%s", err)
+    }
+	
+    return &userToFind, nil
 }
 
 func (u UserRepo) FindUserByUname(name string) (*models.User, error) {

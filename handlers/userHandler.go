@@ -10,7 +10,7 @@ import (
 )
 
 type UserHandlerInterface interface {
-	// LoginHandler(ctx *fiber.Ctx) error
+	LoginHandler(ctx *fiber.Ctx) error
 	SignUpHandler(ctx *fiber.Ctx) error
 	// UpdatePassHandler(ctx *fiber.Ctx) error
 	// DeleteUserHandler(ctx *fiber.Ctx) error
@@ -26,12 +26,42 @@ func NewUserHandler(serv services.UserServInterface) UserHandlerInterface {
 	}
 }
 
-// func (uh *UserHandler) LoginHandler(ctx *fiber.Ctx) error {
+func (uh *UserHandler) LoginHandler(ctx *fiber.Ctx) error {
+	var existingUser dto.UserAuth
 
-// }
+	if err := ctx.BodyParser(&existingUser); err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+
+	err := validate.Struct(existingUser)
+
+	if err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	token, err := uh.service.Login(&existingUser)
+
+	if err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	resp := fiber.Map{
+		"token" : token,
+	}
+
+	return ctx.Status(http.StatusCreated).JSON(resp)
+}
 
 func (uh UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
-	var newUser dto.UserSignup
+	var newUser dto.UserAuth
 
 	if err := ctx.BodyParser(&newUser); err != nil {
 		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -49,27 +79,19 @@ func (uh UserHandler) SignUpHandler(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user, err := uh.service.SignUp(&newUser)
-
-	if err != nil && user == nil {
-		return ctx.Status(http.StatusConflict).JSON(fiber.Map{
-			"message": err.Error(),
-		})
-	}
+	token, err := uh.service.SignUp(&newUser)
 
 	if err != nil {
-		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 
-	userResp := dto.UserSignup{
-		Name:     user.Name,
-		Email:    user.Email,
-		Password: user.Password,
+	resp := fiber.Map{
+		"token" : token,
 	}
 
-	return ctx.Status(http.StatusCreated).JSON(userResp)
+	return ctx.Status(http.StatusCreated).JSON(resp)
 }
 
 // func (uh *UserHandler) UpdatePassHandler(ctx *fiber.Ctx) error {

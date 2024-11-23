@@ -45,7 +45,7 @@ func main() {
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": "server started on Port :" + port,
+			"message": "muah😘..." + port,
 			"time":    time.Now(),
 		})
 	})
